@@ -2,23 +2,25 @@
   "name": "@blockstack/stacks-node-crawler",
   "version": "1.0.0",
   "description": "",
-  "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node src/index.ts | tee run-log-`date +%s`.txt"
+    "start": "ts-node src/index.ts | tee logs/run-log-`date +%s`.txt"
   },
   "keywords": [],
   "author": "Matthew Little",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^4.15.0",
     "@types/geoip-country": "^4.0.0",
     "@types/node": "^14.14.16",
     "@types/node-fetch": "^2.5.12",
     "abort-controller": "^3.0.0",
+    "dotenv-flow": "^3.2.0",
     "geoip-country": "^4.0.48",
     "ip-address": "^7.1.0",
     "node-fetch": "^2.6.2",
     "p-queue": "^6.6.2",
+    "prisma": "^4.4.0",
     "ts-node": "^10.2.1",
     "typescript": "^4.4.3"
   }

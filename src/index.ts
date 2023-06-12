@@ -3,12 +3,14 @@ import pQueue from 'p-queue';
 import * as geoipCountry from 'geoip-country';
 import AbortController from "abort-controller";
 import { Address4 } from 'ip-address';
+import { prisma } from './db.js'
+
 
 const seedNodes: string[] = [
-  'stacks-node-api.mainnet.stacks.co',
-  'seed-0.mainnet.stacks.co:20443',
-  'seed-1.mainnet.stacks.co:20443',
-  'seed-2.mainnet.stacks.co:20443',
+  'api.mainnet.hiro.so', //hiro api
+  'seed.mainnet.hiro.so:20443',  // hiro seed node
+  'api.stacks.org',    // foundation api
+  '3.91.91.237:20443', // foundation miner
 ];
 
 function wait(ms: number): Promise<void> {
@@ -53,9 +55,18 @@ interface QueryResult {
 const RPC_PORT = 20443;
 
 function getQueryUrls(nodeUrl: string): string[] {
+  const splitNode = nodeUrl.split(":");
+  let hostURI = '';
+  console.log(`\nnodeURL: ${nodeUrl}`);
+  if ( splitNode[1] || seedNodes.includes(nodeUrl) ){
+    hostURI = nodeUrl;
+  } else {
+    console.log(`splitNode[0]: ${splitNode[0]}`);
+    hostURI = `${nodeUrl}:${RPC_PORT}`;
+    console.log(`hostURI: ${hostURI}`)
+  }
   return [...new Set([
-    nodeUrl,
-    `${nodeUrl}:${RPC_PORT}`
+    `${hostURI}`
   ])];
 }
 
@@ -75,7 +86,18 @@ async function queryNodeNeighbors(nodeUrl: string, retries = 16): Promise<QueryR
         responsive = true;
         const allNeighbors = [...result.sample, ...result.inbound, ...result.outbound];
         allNeighbors.forEach(n => ips.add(n.ip));
-        allNeighbors.forEach(n => uniqueNeighbors.set(`${n.ip}@${n.public_key_hash}`, n));
+        // allNeighbors.forEach(n => uniqueNeighbors.set(`${n.ip}@${n.public_key_hash}`, n));
+        allNeighbors.forEach(n => uniqueNeighbors.set(`${n.ip}@${n.peer_version}${n.public_key_hash}`, n));
+        // line 173, move private-ip logic here so only public ip's are added to DB. 
+        // for report at end of script, query DB for results
+        // upsert to db here
+        //    ip as a key
+        //    peer_version as column
+        //    public_key hash as column 
+        //    responive bool as column
+        //    country code as column (will need to use logic on line 188)
+        //    neighbors as json data column
+        //    info as json data column
       } catch (error) {
         console.info(`Neighbors RPC failed for ${nodeUrl}: ${(error as Error).message}`);
         if (i < retries) {
@@ -93,7 +115,6 @@ async function scanNeighbors() {
   const foundIps = new Set<string>();
   const responsiveIps = new Set<string>();
   const queriedIps = new Set<string>();
-
   const requestQueue = new pQueue({concurrency: 50});
 
   const getIpsToQuery = () => {
@@ -114,6 +135,7 @@ async function scanNeighbors() {
       requestQueue.add(async () => {
         const result = await queryNodeNeighbors(ip);
         if (result.responsive) {
+          // update db row for ip, set responsive true/false
           responsiveIps.add(ip);
         }
         result.neighbors.forEach(n => foundIps.add(n));
@@ -151,6 +173,7 @@ async function scanNeighbors() {
   const ipSubnetClassA = new Address4('10.0.0.0/8');
   const ipSubnetClassB = new Address4('172.16.0.0/12');
   const ipSubnetClassC = new Address4('192.168.0.0/16');
+  
   const privateIps = [...foundIps]
     .map(ip => new Address4(ip))
     .filter(ip => ip.isInSubnet(ipSubnetClassA) || ip.isInSubnet(ipSubnetClassB) || ip.isInSubnet(ipSubnetClassC))
@@ -185,3 +208,4 @@ scanNeighbors().catch(error => {
   console.error(`Unexpected error during scan: ${error.message}`);
   console.error(error);
 });
+
