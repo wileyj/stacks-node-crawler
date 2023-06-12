@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// https://www.prisma.io/docs/getting-started/quickstart
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model peers {
+  timestamp DateTime @default(now())
+  ip String?
+  public_key String  @unique
+  responive Boolean @default(false)
+  geo_code String?
+  neighbors Json
+}
+
+model neighbors {
+  timestamp DateTime  @default(now())
+  ip String?
+  public_key String  @unique
+  data Json
+}
+
+model info {
+  timestamp DateTime  @default(now())
+  ip String?
+  public_key String  @unique
+  data Json
+}
